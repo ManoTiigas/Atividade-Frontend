@@ -1,71 +1,142 @@
-// src/screens/TaskListScreen.tsx
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, Alert, ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Task, TaskStatus, RootStackParamList } from '../types/Task';
+import {
+  Task,
+  TaskStatus,
+  RootStackParamList,
+} from '../types/Task';
+
 import { TaskCard } from '../components/TaskCard';
 import { useTasks } from '../hooks/useTasks';
+
 import {
-  colors, spacing, radius, fontSize, fontWeight,
-  statusColor, statusLabel,
+  colors,
+  spacing,
+  radius,
+  fontSize,
+  fontWeight,
+  statusColor,
+  statusLabel,
 } from '../theme';
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'List'>;
+  navigation: NativeStackNavigationProp<
+    RootStackParamList,
+    'List'
+  >;
 };
 
-type FilterOption = TaskStatus | 'all';
+type Filter = TaskStatus | 'all';
 
-const FILTERS: { key: FilterOption; label: string }[] = [
+const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'Todas' },
   { key: 'pending', label: 'Pendentes' },
   { key: 'in_progress', label: 'Em progresso' },
   { key: 'done', label: 'Concluídas' },
 ];
 
-export function TaskListScreen({ navigation }: Props) {
-  const { tasks, stats, loading, error, fetchTasks, deleteTask } = useTasks();
-  const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+export function TaskListScreen({
+  navigation,
+}: Props) {
+  const {
+    tasks,
+    loading,
+    error,
+    fetchTasks,
+    deleteTask,
+  } = useTasks();
 
-  // Filtragem local — sem nova chamada à API
-  const filteredTasks = useMemo(
-    () => activeFilter === 'all' ? tasks : tasks.filter(t => t.status === activeFilter),
-    [tasks, activeFilter]
+  const [filter, setFilter] =
+    useState<Filter>('all');
+
+  const visible = useMemo(() => {
+    if (filter === 'all') return tasks;
+
+    return tasks.filter(
+      (task) => task.status === filter
+    );
+  }, [tasks, filter]);
+
+  const stats = useMemo<
+    Record<TaskStatus, number>
+  >(
+    () => ({
+      done: tasks.filter(
+        (t) => t.status === 'done'
+      ).length,
+
+      in_progress: tasks.filter(
+        (t) => t.status === 'in_progress'
+      ).length,
+
+      pending: tasks.filter(
+        (t) => t.status === 'pending'
+      ).length,
+    }),
+    [tasks]
   );
 
-  const handleDelete = (task: Task) => {
+  function handleDelete(task: Task) {
     Alert.alert(
       'Excluir tarefa',
       `"${task.title}" será removida permanentemente.`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
         {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            const ok = await deleteTask(task.id);
-            if (!ok) Alert.alert('Erro', 'Não foi possível excluir a tarefa.');
+            const ok = await deleteTask(
+              task.id
+            );
+
+            if (!ok) {
+              Alert.alert(
+                'Erro',
+                'Não foi possível excluir a tarefa.'
+              );
+            }
           },
         },
       ]
     );
-  };
+  }
 
   if (error) {
     return (
       <SafeAreaView style={s.center}>
-        <Ionicons name="cloud-offline-outline" size={48} color={colors.text3} />
-        <Text style={s.errorTitle}>Sem conexão</Text>
-        <Text style={s.errorSub}>{error}</Text>
-        <TouchableOpacity style={s.retryBtn} onPress={fetchTasks}>
-          <Text style={s.retryText}>Tentar novamente</Text>
+        <Text style={s.errorTitle}>
+          Sem conexão
+        </Text>
+
+        <Text style={s.errorSub}>
+          {error}
+        </Text>
+
+        <TouchableOpacity
+          style={s.retryBtn}
+          onPress={fetchTasks}
+        >
+          <Text style={s.retryText}>
+            Tentar novamente
+          </Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -73,72 +144,106 @@ export function TaskListScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
       <View style={s.header}>
-        <View>
-          <Text style={s.heading}>Minhas Tarefas</Text>
-          <Text style={s.subheading}>
-            {stats.pending === 0
-              ? 'Tudo em dia ✅'
-              : `${stats.pending} pendente${stats.pending > 1 ? 's' : ''}`}
-          </Text>
-        </View>
+        <Text style={s.heading}>
+          Minhas Tarefas
+        </Text>
+
+        <Text style={s.subheading}>
+          {stats.pending === 0
+            ? 'Tudo em dia ✅'
+            : `${stats.pending} pendente${
+                stats.pending > 1 ? 's' : ''
+              }`}
+        </Text>
       </View>
 
-      {/* Stats cards */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.statsRow}
       >
-        {(['done', 'in_progress', 'pending'] as TaskStatus[]).map(status => (
+        {(
+          [
+            'done',
+            'in_progress',
+            'pending',
+          ] as TaskStatus[]
+        ).map((status) => (
           <TouchableOpacity
             key={status}
             style={s.statCard}
-            onPress={() => setActiveFilter(status)}
+            onPress={() =>
+              setFilter(status)
+            }
             activeOpacity={0.75}
           >
-            <Text style={[s.statNumber, { color: statusColor[status] }]}>
+            <Text
+              style={[
+                s.statNumber,
+                {
+                  color:
+                    statusColor[status],
+                },
+              ]}
+            >
               {stats[status]}
             </Text>
-            <Text style={s.statLabel}>{statusLabel[status]}</Text>
+
+            <Text style={s.statLabel}>
+              {statusLabel[status]}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Filters */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.filterRow}
       >
-        {FILTERS.map(f => {
-          const isActive = activeFilter === f.key;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[s.filterChip, isActive && s.filterChipActive]}
-              onPress={() => setActiveFilter(f.key)}
+        {FILTERS.map((item) => (
+          <TouchableOpacity
+            key={item.key}
+            style={[
+              s.chip,
+              filter === item.key &&
+                s.chipActive,
+            ]}
+            onPress={() =>
+              setFilter(item.key)
+            }
+          >
+            <Text
+              style={[
+                s.chipLabel,
+                filter === item.key &&
+                  s.chipLabelActive,
+              ]}
             >
-              <Text style={[s.filterLabel, isActive && s.filterLabelActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
-      {/* Task list */}
       {loading && tasks.length === 0 ? (
         <View style={s.center}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator
+            size="large"
+            color={colors.accent}
+          />
         </View>
       ) : (
         <FlatList
-          data={filteredTasks}
-          keyExtractor={t => t.id}
-          contentContainerStyle={s.listContent}
-          showsVerticalScrollIndicator={false}
+          data={visible}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={
+            s.listContent
+          }
+          showsVerticalScrollIndicator={
+            false
+          }
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -149,31 +254,52 @@ export function TaskListScreen({ navigation }: Props) {
           renderItem={({ item }) => (
             <TaskCard
               task={item}
-              onEdit={() => navigation.navigate('Form', { task: item })}
-              onDelete={() => handleDelete(item)}
+              onEdit={() =>
+                navigation.navigate(
+                  'Form',
+                  { task: item }
+                )
+              }
+              onDelete={() =>
+                handleDelete(item)
+              }
             />
           )}
           ListEmptyComponent={
-            <View style={s.emptyState}>
-              <Text style={s.emptyIcon}>📭</Text>
-              <Text style={s.emptyTitle}>Nenhuma tarefa aqui</Text>
+            <View style={s.empty}>
+              <Text style={s.emptyIcon}>
+                📭
+              </Text>
+
+              <Text style={s.emptyTitle}>
+                Nenhuma tarefa aqui
+              </Text>
+
               <Text style={s.emptySub}>
-                {activeFilter === 'all'
+                {filter === 'all'
                   ? 'Toque no + para criar sua primeira tarefa'
-                  : `Sem tarefas com status "${statusLabel[activeFilter]}"`}
+                  : `Sem tarefas com status "${statusLabel[filter]}"`}
               </Text>
             </View>
           }
         />
       )}
 
-      {/* FAB */}
       <TouchableOpacity
         style={s.fab}
-        onPress={() => navigation.navigate('Form', undefined)}
+        onPress={() =>
+          navigation.navigate(
+            'Form',
+            undefined
+          )
+        }
         activeOpacity={0.85}
       >
-        <Ionicons name="add" size={26} color={colors.white} />
+        <Ionicons
+          name="add"
+          size={26}
+          color={colors.white}
+        />
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -184,6 +310,7 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+
   center: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -192,27 +319,32 @@ const s = StyleSheet.create({
     padding: spacing.xxl,
     gap: spacing.md,
   },
+
   header: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
+
   heading: {
     fontSize: fontSize.xxxl,
     fontWeight: fontWeight.bold,
     color: colors.text,
     letterSpacing: -0.5,
   },
+
   subheading: {
     fontSize: fontSize.sm,
     color: colors.text2,
     marginTop: 2,
   },
+
   statsRow: {
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
     paddingBottom: spacing.md,
   },
+
   statCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -223,58 +355,69 @@ const s = StyleSheet.create({
     minWidth: 90,
     alignItems: 'center',
   },
+
   statNumber: {
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
   },
+
   statLabel: {
     fontSize: fontSize.xs,
     color: colors.text2,
     marginTop: 2,
   },
+
   filterRow: {
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
     paddingBottom: spacing.md,
   },
-  filterChip: {
+
+  chip: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm - 1,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.transparent,
   },
-  filterChipActive: {
+
+  chipActive: {
     backgroundColor: colors.accentDim,
     borderColor: colors.accent,
   },
-  filterLabel: {
+
+  chipLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.text2,
   },
-  filterLabelActive: {
+
+  chipLabelActive: {
     color: colors.accentLight,
   },
+
   listContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: 100,
   },
-  emptyState: {
+
+  empty: {
     alignItems: 'center',
     paddingTop: 60,
     gap: spacing.sm,
   },
+
   emptyIcon: {
     fontSize: 48,
     marginBottom: spacing.sm,
   },
+
   emptyTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
     color: colors.text2,
   },
+
   emptySub: {
     fontSize: fontSize.sm,
     color: colors.text3,
@@ -282,6 +425,7 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     lineHeight: 20,
   },
+
   fab: {
     position: 'absolute',
     bottom: spacing.xxxl,
@@ -292,22 +436,20 @@ const s = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
   },
+
   errorTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text2,
   },
+
   errorSub: {
     fontSize: fontSize.sm,
     color: colors.text3,
     textAlign: 'center',
   },
+
   retryBtn: {
     marginTop: spacing.md,
     paddingHorizontal: spacing.xxl,
@@ -317,6 +459,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.accent,
   },
+
   retryText: {
     color: colors.accentLight,
     fontWeight: fontWeight.semibold,
